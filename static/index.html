@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VR Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+    }
+
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.05em; }
+
+    #connection-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      background: #374151;
+      color: #9ca3af;
+    }
+    #connection-badge.connected { background: #064e3b; color: #6ee7b7; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+
+    .card {
+      background: #1e2330;
+      border: 1px solid #2d3748;
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      transition: border-color 0.2s;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pc-name { font-size: 1.1rem; font-weight: 600; }
+    .pc-ip { font-size: 0.75rem; color: #6b7280; }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #4b5563; /* offline */
+      flex-shrink: 0;
+      box-shadow: 0 0 6px currentColor;
+    }
+    .status-dot.online  { background: #34d399; color: #34d399; }
+    .status-dot.offline { background: #f87171; color: #f87171; }
+
+    .status-label {
+      font-size: 0.75rem;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .status-label.online  { color: #34d399; }
+    .status-label.offline { color: #f87171; }
+
+    .actions { display: flex; gap: 0.5rem; }
+
+    button {
+      flex: 1;
+      padding: 0.45rem 0;
+      border: none;
+      border-radius: 0.4rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-wake     { background: #1d4ed8; color: #fff; }
+    .btn-wake:hover:not(:disabled)     { background: #2563eb; }
+    .btn-shutdown { background: #7f1d1d; color: #fca5a5; }
+    .btn-shutdown:hover:not(:disabled) { background: #991b1b; }
+
+    .toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      z-index: 100;
+    }
+
+    .toast {
+      padding: 0.6rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.85rem;
+      background: #1e2330;
+      border: 1px solid #374151;
+      animation: slide-in 0.2s ease;
+    }
+    .toast.ok  { border-color: #065f46; color: #6ee7b7; }
+    .toast.err { border-color: #7f1d1d; color: #fca5a5; }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateX(20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>VR Dashboard</h1>
+    <span id="connection-badge">Connexion...</span>
+  </header>
+
+  <div class="grid" id="grid"></div>
+  <div class="toast-container" id="toasts"></div>
+
+  <script>
+    const grid = document.getElementById('grid');
+    const badge = document.getElementById('connection-badge');
+    const toastsEl = document.getElementById('toasts');
+
+    // ── Toast helper ──────────────────────────────────────────────────────────
+    function toast(msg, ok = true) {
+      const el = document.createElement('div');
+      el.className = 'toast ' + (ok ? 'ok' : 'err');
+      el.textContent = msg;
+      toastsEl.appendChild(el);
+      setTimeout(() => el.remove(), 3500);
+    }
+
+    // ── API calls ─────────────────────────────────────────────────────────────
+    async function apiPost(path) {
+      try {
+        const res = await fetch(path, { method: 'POST' });
+        const data = await res.json();
+        toast(data.message ?? data.error ?? 'OK', data.ok);
+      } catch (e) {
+        toast('Erreur réseau : ' + e.message, false);
+      }
+    }
+
+    // ── PC card rendering ─────────────────────────────────────────────────────
+    function renderPCs(pcs) {
+      grid.innerHTML = '';
+      for (const pc of pcs) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.id = `pc-${pc.id}`;
+        card.innerHTML = `
+          <div class="card-header">
+            <div>
+              <div class="pc-name">${pc.name}</div>
+              <div class="pc-ip">${pc.ip}</div>
+            </div>
+            <span class="status-dot ${pc.status}" title="${pc.status}"></span>
+          </div>
+          <div class="status-label ${pc.status}">${pc.status === 'online' ? 'En ligne' : 'Hors ligne'}</div>
+          <div class="actions">
+            <button class="btn-wake" onclick="apiPost('/api/wake/${pc.id}')">Wake</button>
+            <button class="btn-shutdown" onclick="apiPost('/api/shutdown/${pc.id}')"
+              ${pc.status !== 'online' ? 'disabled' : ''}>Shutdown</button>
+          </div>
+        `;
+        grid.appendChild(card);
+      }
+    }
+
+    function updatePCs(pcs) {
+      for (const pc of pcs) {
+        const card = document.getElementById(`pc-${pc.id}`);
+        if (!card) { renderPCs(pcs); return; }
+
+        const dot   = card.querySelector('.status-dot');
+        const label = card.querySelector('.status-label');
+        const btnShutdown = card.querySelector('.btn-shutdown');
+
+        dot.className   = `status-dot ${pc.status}`;
+        label.className = `status-label ${pc.status}`;
+        label.textContent = pc.status === 'online' ? 'En ligne' : 'Hors ligne';
+        btnShutdown.disabled = pc.status !== 'online';
+      }
+    }
+
+    // ── WebSocket ─────────────────────────────────────────────────────────────
+    let ws;
+    let initialRender = true;
+
+    function connect() {
+      ws = new WebSocket(`ws://${location.host}/ws`);
+
+      ws.onopen = () => {
+        badge.textContent = 'Connecté';
+        badge.className = 'connected';
+      };
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'status') {
+          if (initialRender) {
+            renderPCs(msg.pcs);
+            initialRender = false;
+          } else {
+            updatePCs(msg.pcs);
+          }
+        }
+      };
+
+      ws.onclose = () => {
+        badge.textContent = 'Déconnecté — reconnexion...';
+        badge.className = '';
+        setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => ws.close();
+    }
+
+    connect();
+  </script>
+</body>
+</html>
