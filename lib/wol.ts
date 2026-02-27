@@ -12,14 +12,15 @@ export async function sendWakeOnLan(mac: string): Promise<void> {
     packet.set(macBytes, 6 + i * 6);
   }
 
-  const conn = await Deno.connect({
+  // Deno.listenDatagram is required for UDP broadcast (Deno.connect doesn't support it)
+  const conn = Deno.listenDatagram({
     transport: "udp",
-    hostname: "255.255.255.255",
-    port: 9,
+    hostname: "0.0.0.0",
+    port: 0,
   });
 
   try {
-    await conn.send(packet);
+    await conn.send(packet, { transport: "udp", hostname: "255.255.255.255", port: 9 });
   } finally {
     conn.close();
   }
