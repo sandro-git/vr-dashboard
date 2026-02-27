@@ -40,7 +40,16 @@ ipconfig /all
 # Chercher "Adresse physique" sur la carte réseau principale
 ```
 
-### 2. Activer Wake-on-LAN sur chaque PC distant
+### 2. Ouvrir le pare-feu sur la machine centrale (serveur)
+
+Les agents des autres PCs se connectent au serveur sur le port 8000.
+Exécuter sur la machine centrale en administrateur :
+
+```powershell
+netsh advfirewall firewall add rule name="VR Dashboard" dir=in action=allow protocol=TCP localport=8000
+```
+
+### 3. Activer Wake-on-LAN sur chaque PC distant
 
 **Dans le BIOS :**
 - Chercher "Wake on LAN", "Power On by PCI-E" ou similaire → Activer
