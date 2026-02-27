@@ -77,15 +77,16 @@ function handleAgentConnection(ws: WebSocket, id: number): void {
 function handleDashboardConnection(ws: WebSocket): void {
   dashboardClients.add(ws);
 
-  // Send current state immediately on connect
-  const payload = JSON.stringify({
-    type: "status",
-    pcs: PCS.map((pc) => ({
-      ...pc,
-      status: status.get(pc.id) ?? "offline",
-    })),
-  });
-  ws.send(payload);
+  ws.onopen = () => {
+    // Send current state immediately once the socket is open
+    ws.send(JSON.stringify({
+      type: "status",
+      pcs: PCS.map((pc) => ({
+        ...pc,
+        status: status.get(pc.id) ?? "offline",
+      })),
+    }));
+  };
 
   ws.onclose = () => dashboardClients.delete(ws);
   ws.onerror = () => dashboardClients.delete(ws);
