@@ -7,7 +7,7 @@ export interface PC {
 }
 
 export const PCS: PC[] = [
-  { id: 1, name: "VR-01", ip: "192.168.1.25",  mac: "A4:BB:6D:51:FA:4A", network: 1 },
+  { id: 1, name: "VR-01", ip: "192.168.1.101", mac: "AA:BB:CC:DD:EE:01", network: 1 },
   { id: 2, name: "VR-02", ip: "192.168.1.102", mac: "AA:BB:CC:DD:EE:02", network: 1 },
   { id: 3, name: "VR-03", ip: "192.168.1.103", mac: "AA:BB:CC:DD:EE:03", network: 1 },
   { id: 4, name: "VR-04", ip: "192.168.1.104", mac: "AA:BB:CC:DD:EE:04", network: 1 },
