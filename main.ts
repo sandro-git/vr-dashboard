@@ -177,4 +177,4 @@ async function handleRequest(req: Request): Promise<Response> {
 }
 
 console.log(`[server] VR Dashboard running on http://localhost:${PORT}`);
-Deno.serve({ port: PORT }, handleRequest);
+Deno.serve({ port: PORT, hostname: "0.0.0.0" }, handleRequest);

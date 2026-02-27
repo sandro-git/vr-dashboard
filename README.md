@@ -40,7 +40,16 @@ ipconfig /all
 # Chercher "Adresse physique" sur la carte réseau principale
 ```
 
-### 2. Activer Wake-on-LAN sur chaque PC distant
+### 2. Ouvrir le pare-feu sur la machine centrale (serveur)
+
+Les agents des autres PCs se connectent au serveur sur le port 8000.
+Exécuter sur la machine centrale en administrateur :
+
+```powershell
+netsh advfirewall firewall add rule name="VR Dashboard" dir=in action=allow protocol=TCP localport=8000
+```
+
+### 3. Activer Wake-on-LAN sur chaque PC distant
 
 **Dans le BIOS :**
 - Chercher "Wake on LAN", "Power On by PCI-E" ou similaire → Activer
@@ -77,40 +86,44 @@ cache localement ; il ne re-télécharge que si le serveur est joignable.
 
 ### Démarrage automatique avec Windows (Planificateur de tâches)
 
-L'agent ne se lance pas tout seul — il faut le configurer une fois par PC.
-La méthode recommandée est le **Planificateur de tâches** : il démarre au boot,
-sans qu'un utilisateur ait besoin de se connecter.
+Toutes les commandes ci-dessous sont à exécuter dans PowerShell **en administrateur**.
+Adapter le chemin Deno, l'IP du serveur et le `--id` à chaque PC.
 
-Ouvrir PowerShell **en administrateur** et exécuter (adapter `--id` et l'IP) :
-
+Pour trouver le chemin exact de Deno sur un PC :
 ```powershell
-$action  = New-ScheduledTaskAction `
-    -Execute "deno" `
-    -Argument "run --allow-net --allow-run http://192.168.1.100:8000/agent.ts --id=1"
-
-$trigger = New-ScheduledTaskTrigger -AtStartup
-
-$settings = New-ScheduledTaskSettingsSet `
-    -RestartCount 999 `
-    -RestartInterval (New-TimeSpan -Minutes 1) `
-    -ExecutionTimeLimit ([TimeSpan]::Zero)
-
-Register-ScheduledTask `
-    -TaskName "VR-Dashboard-Agent" `
-    -Action $action `
-    -Trigger $trigger `
-    -Settings $settings `
-    -RunLevel Highest `
-    -User "SYSTEM"
+where.exe deno
 ```
 
-Ce que fait chaque option :
-- `User "SYSTEM"` → démarre sans login utilisateur
-- `RunLevel Highest` → droits suffisants pour exécuter shutdown
-- `RestartCount 999` + `RestartInterval 1min` → redémarre si le processus plante
-- `ExecutionTimeLimit Zero` → pas de limite de durée (tourne en permanence)
+---
 
-Pour vérifier que la tâche est bien créée :
+#### Serveur (machine centrale) — lancement automatique du serveur
+
+Si Deno est installé globalement (ex. via Chocolatey) :
+
+```powershell
+$a = New-ScheduledTaskAction -Execute "C:\ProgramData\chocolatey\lib\deno\deno.exe" -Argument "run --allow-net --allow-read --unstable-net C:\chemin\vr-dashboard\main.ts" -WorkingDirectory "C:\chemin\vr-dashboard"; $t = New-ScheduledTaskTrigger -AtStartup; $p = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest; Register-ScheduledTask -TaskName "VR-Dashboard-Server" -Action $a -Trigger $t -Principal $p
+```
+
+---
+
+#### PC distant — lancement automatique de l'agent
+
+Si Deno est installé globalement (ex. via Chocolatey) :
+
+```powershell
+$a = New-ScheduledTaskAction -Execute "C:\ProgramData\chocolatey\lib\deno\deno.exe" -Argument "run --reload --allow-net --allow-run http://192.168.1.100:8000/agent.ts --id=2"; $t = New-ScheduledTaskTrigger -AtStartup; $p = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest; Register-ScheduledTask -TaskName "VR-Dashboard-Agent" -Action $a -Trigger $t -Principal $p
+```
+
+Si Deno est installé dans le profil utilisateur (ex. `C:\Users\NOM\.deno\bin\deno.exe`),
+remplacer `SYSTEM` par le nom de session et utiliser `-AtLogon` :
+
+```powershell
+$a = New-ScheduledTaskAction -Execute "C:\Users\NOM\.deno\bin\deno.exe" -Argument "run --reload --allow-net --allow-run http://192.168.1.100:8000/agent.ts --id=2"; $t = New-ScheduledTaskTrigger -AtLogon -User "NOM"; Register-ScheduledTask -TaskName "VR-Dashboard-Agent" -Action $a -Trigger $t -RunLevel Highest
+```
+
+---
+
+Pour vérifier que la tâche tourne :
 ```powershell
 Get-ScheduledTask -TaskName "VR-Dashboard-Agent"
 ```
