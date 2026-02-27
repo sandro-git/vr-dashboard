@@ -44,10 +44,12 @@ function handleAgentConnection(ws: WebSocket, id: number): void {
     return;
   }
 
-  agents.set(id, ws);
-  status.set(id, "online");
-  console.log(`[server] Agent connected: ${pc.name} (id=${id})`);
-  broadcastStatus();
+  ws.onopen = () => {
+    agents.set(id, ws);
+    status.set(id, "online");
+    console.log(`[server] Agent connected: ${pc.name} (id=${id})`);
+    broadcastStatus();
+  };
 
   ws.onmessage = (event) => {
     try {
