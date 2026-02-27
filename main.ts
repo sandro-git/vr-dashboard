@@ -71,8 +71,8 @@ function handleAgentConnection(ws: WebSocket, id: number): void {
     }
   };
 
-  ws.onerror = (e) => {
-    console.error(`[server] Agent WS error for ${pc.name}:`, e);
+  ws.onerror = () => {
+    // Connection dropped abruptly (e.g. PC shutdown) — onclose will handle status update
   };
 }
 
