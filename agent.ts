@@ -10,7 +10,18 @@ const args = Object.fromEntries(
 );
 
 const PC_ID = args["id"];
-const SERVER = args["server"] ?? "ws://localhost:8000";
+const SERVER = args["server"] ?? inferServer();
+
+function inferServer(): string {
+  try {
+    const url = new URL(import.meta.url);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      const ws = url.protocol === "https:" ? "wss:" : "ws:";
+      return `${ws}//${url.host}`;
+    }
+  } catch { /* ignore */ }
+  return "ws://localhost:8000";
+}
 
 if (!PC_ID) {
   console.error("Usage: deno run agent.ts --id=<pc_id> [--server=ws://host:8000]");
