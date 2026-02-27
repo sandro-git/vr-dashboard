@@ -60,6 +60,13 @@ netsh advfirewall firewall add rule name="VR Dashboard" dir=in action=allow prot
 3. Cocher "Autoriser ce périphérique à sortir l'ordinateur du mode veille"
 4. Onglet **Avancé** → "Wake on Magic Packet" → Activé
 
+> Le WoL utilise `Deno.listenDatagram` (UDP broadcast sur port 9) qui nécessite le flag
+> `--unstable-net`. Ce flag est déjà inclus dans `deno task server` via `deno.json`.
+> Si tu lances le serveur manuellement, ajoute `--unstable-net` :
+> ```powershell
+> deno run --allow-net --allow-read --unstable-net main.ts
+> ```
+
 ---
 
 ## Lancement
